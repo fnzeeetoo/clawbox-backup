@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
+import Modal from '../components/Modal';
+import SourceForm from '../components/SourceForm';
+import DestinationForm from '../components/DestinationForm';
+import ScheduleForm from '../components/ScheduleForm';
 
 export default function Configure() {
   const [activeTab, setActiveTab] = useState('sources');
@@ -8,6 +12,12 @@ export default function Configure() {
   const [destinations, setDestinations] = useState([]);
   const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState(null); // 'source', 'destination', 'schedule', 'usb'
+  const [editingItem, setEditingItem] = useState(null); // item being edited
+  const [usbDevices, setUsbDevices] = useState([]);
 
   useEffect(() => {
     fetchData();
@@ -37,6 +47,170 @@ export default function Configure() {
       console.error('Failed to fetch configuration:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const openAddModal = (type) => {
+    setEditingItem(null);
+    setModalType(type);
+    setModalOpen(true);
+  };
+
+  const openEditModal = (type, item) => {
+    setEditingItem(item);
+    setModalType(type);
+    setModalOpen(true);
+  };
+
+  const handleSave = () => {
+    setModalOpen(false);
+    setModalType(null);
+    setEditingItem(null);
+    fetchData();
+  };
+
+  const handleCancel = () => {
+    setModalOpen(false);
+    setModalType(null);
+    setEditingItem(null);
+  };
+
+  const handleDeleteSource = async (id) => {
+    if (confirm('Delete this source?')) {
+      await fetch(`/api/sources/${id}`, { method: 'DELETE' });
+      fetchData();
+    }
+  };
+
+  const handleDeleteDestination = async (id) => {
+    if (confirm('Delete this destination?')) {
+      await fetch(`/api/destinations/${id}`, { method: 'DELETE' });
+      fetchData();
+    }
+  };
+
+  const handleDeleteSchedule = async (id) => {
+    if (confirm('Delete this schedule?')) {
+      await fetch(`/api/schedules/${id}`, { method: 'DELETE' });
+      fetchData();
+    }
+  };
+
+  const detectUSB = async () => {
+    try {
+      const res = await fetch('/api/usb');
+      if (res.ok) {
+        const data = await res.json();
+        setUsbDevices(data.data || []);
+        setModalType('usb');
+        setModalOpen(true);
+      }
+    } catch (error) {
+      console.error('USB detection failed:', error);
+    }
+  };
+
+  const renderModalContent = () => {
+    switch (modalType) {
+      case 'source':
+        return (
+          <SourceForm
+            onSave={handleSave}
+            onCancel={handleCancel}
+            initialData={editingItem}
+          />
+        );
+      case 'destination':
+        return (
+          <DestinationForm
+            onSave={handleSave}
+            onCancel={handleCancel}
+            initialData={editingItem}
+          />
+        );
+      case 'schedule':
+        return (
+          <ScheduleForm
+            onSave={handleSave}
+            onCancel={handleCancel}
+            initialData={editingItem}
+            availableSources={sources}
+            availableDestinations={destinations}
+          />
+        );
+      case 'usb':
+        return (
+          <div>
+            <h4 className="text-lg font-medium mb-4">Detected USB Devices</h4>
+            {usbDevices.length === 0 ? (
+              <p className="text-gray-500">No USB devices found.</p>
+            ) : (
+              <div className="space-y-3">
+                {usbDevices.map((dev, idx) => (
+                  <div key={idx} className="border rounded-lg p-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h5 className="font-medium text-gray-900">{dev.label}</h5>
+                        <p className="text-sm text-gray-500 font-mono">{dev.device}</p>
+                        <p className="text-sm text-gray-400">
+                          Size: {(dev.size / (1024**3)).toFixed(1)} GB
+                          {dev.mountPoint && ` • Mounted: ${dev.mountPoint}`}
+                        </p>
+                      </div>
+                      {!dev.mountPoint && (
+                        <button
+                          onClick={async () => {
+                            if (confirm(`Mount ${dev.device} at /mnt/${dev.label}?`)) {
+                              try {
+                                await fetch('/api/usb/mount', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ device: dev.device, label: dev.label }),
+                                });
+                                fetchData();
+                                handleCancel();
+                              } catch (e) {
+                                alert('Mount failed: ' + e.message);
+                              }
+                            }
+                          }}
+                          className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
+                        >
+                          Mount & Add
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="flex justify-end mt-6">
+              <button
+                onClick={handleCancel}
+                className="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const getModalTitle = () => {
+    switch (modalType) {
+      case 'source':
+        return editingItem ? 'Edit Source' : 'Add Source';
+      case 'destination':
+        return editingItem ? 'Edit Destination' : 'Add Destination';
+      case 'schedule':
+        return editingItem ? 'Edit Schedule' : 'Add Schedule';
+      case 'usb':
+        return 'USB Devices';
+      default:
+        return '';
     }
   };
 
@@ -99,14 +273,7 @@ export default function Configure() {
 
                   <div className="mt-6 pt-6 border-t">
                     <button
-                      onClick={async () => {
-                        // Auto-detect USB
-                        const res = await fetch('/api/usb');
-                        if (res.ok) {
-                          const data = await res.json();
-                          alert(`Found ${data.data?.length || 0} USB device(s)`);
-                        }
-                      }}
+                      onClick={detectUSB}
                       className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
                     >
                       Detect USB
@@ -123,7 +290,7 @@ export default function Configure() {
                     <div className="flex justify-between items-center mb-6">
                       <h2 className="text-xl font-semibold text-gray-900">Backup Sources</h2>
                       <button
-                        onClick={() => {/* Open source modal */}}
+                        onClick={() => openAddModal('source')}
                         className="px-4 py-2 bg-clawbox-600 text-white rounded-lg hover:bg-clawbox-700"
                       >
                         + Add Source
@@ -158,18 +325,13 @@ export default function Configure() {
                               </div>
                               <div className="flex space-x-2">
                                 <button
-                                  onClick={() => {/* Edit source */}}
+                                  onClick={() => openEditModal('source', source)}
                                   className="text-gray-400 hover:text-gray-600"
                                 >
                                   ✏️
                                 </button>
                                 <button
-                                  onClick={async () => {
-                                    if (confirm('Delete this source?')) {
-                                      await fetch(`/api/sources/${source.id}`, { method: 'DELETE' });
-                                      fetchData();
-                                    }
-                                  }}
+                                  onClick={() => handleDeleteSource(source.id)}
                                   className="text-red-400 hover:text-red-600"
                                 >
                                   🗑️
@@ -189,7 +351,7 @@ export default function Configure() {
                     <div className="flex justify-between items-center mb-6">
                       <h2 className="text-xl font-semibold text-gray-900">Backup Destinations</h2>
                       <button
-                        onClick={() => {/* Open destination modal */}}
+                        onClick={() => openAddModal('destination')}
                         className="px-4 py-2 bg-clawbox-600 text-white rounded-lg hover:bg-clawbox-700"
                       >
                         + Add Destination
@@ -198,16 +360,12 @@ export default function Configure() {
                     {destinations.length === 0 ? (
                       <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                         <p className="text-gray-500 mb-4">No backup destinations configured</p>
-                        <p className="text-sm text-gray-400 mb-4">
+                        <p className="text-sm text-gray-400">
                           Add USB drives, NAS shares, or cloud storage
                         </p>
-                        <div className="flex justify-center space-x-4">
+                        <div className="flex justify-center mt-4">
                           <button
-                            onClick={async () => {
-                              // Auto-detect USB
-                              const res = await fetch('/api/usb');
-                              // Show detected devices in UI
-                            }}
+                            onClick={detectUSB}
                             className="px-4 py-2 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
                           >
                             🔍 Detect USB
@@ -228,27 +386,22 @@ export default function Configure() {
                                   Retention: {dest.retention.policy} {dest.retention.days && `(${dest.retention.days} days)`}
                                 </p>
                                 <span className={`inline-block px-2 py-1 text-xs rounded mt-2 ${
-                                  dest.status === 'connected' ? 'bg-green-100 text-green-700' :
+                                  dest.connected ? 'bg-green-100 text-green-700' :
                                   dest.status === 'error' ? 'bg-red-100 text-red-700' :
                                   'bg-yellow-100 text-yellow-700'
                                 }`}>
-                                  {dest.status || 'unknown'}
+                                  {dest.connected ? 'Connected' : (dest.status || 'unknown')}
                                 </span>
                               </div>
                               <div className="flex space-x-2">
                                 <button
-                                  onClick={() => {/* Edit destination */}}
+                                  onClick={() => openEditModal('destination', dest)}
                                   className="text-gray-400 hover:text-gray-600"
                                 >
                                   ✏️
                                 </button>
                                 <button
-                                  onClick={async () => {
-                                    if (confirm('Delete this destination?')) {
-                                      await fetch(`/api/destinations/${dest.id}`, { method: 'DELETE' });
-                                      fetchData();
-                                    }
-                                  }}
+                                  onClick={() => handleDeleteDestination(dest.id)}
                                   className="text-red-400 hover:text-red-600"
                                 >
                                   🗑️
@@ -268,7 +421,7 @@ export default function Configure() {
                     <div className="flex justify-between items-center mb-6">
                       <h2 className="text-xl font-semibold text-gray-900">Backup Schedules</h2>
                       <button
-                        onClick={() => {/* Open schedule modal */}}
+                        onClick={() => openAddModal('schedule')}
                         className="px-4 py-2 bg-clawbox-600 text-white rounded-lg hover:bg-clawbox-700"
                       >
                         + Add Schedule
@@ -308,16 +461,13 @@ export default function Configure() {
                               </div>
                               <div className="flex space-x-2">
                                 <button
-                                  onClick={() => {/* Edit schedule */}}
+                                  onClick={() => openEditModal('schedule', schedule)}
                                   className="text-gray-400 hover:text-gray-600"
                                 >
                                   ✏️
                                 </button>
                                 <button
-                                  onClick={async () => {
-                                    await fetch(`/api/schedules/${schedule.id}`, { method: 'DELETE' });
-                                    fetchData();
-                                  }}
+                                  onClick={() => handleDeleteSchedule(schedule.id)}
                                   className="text-red-400 hover:text-red-600"
                                 >
                                   🗑️
@@ -335,6 +485,10 @@ export default function Configure() {
           )}
         </main>
       </div>
+
+      <Modal open={modalOpen} onClose={handleCancel} title={getModalTitle()}>
+        {renderModalContent()}
+      </Modal>
     </>
   );
 }
