@@ -1,0 +1,294 @@
+#!/usr/bin/env node
+
+/**
+ * System Installation Script for Clawbox Backup
+ *
+ * This script sets up the backup engine as a systemd service on the host machine.
+ * Run with: sudo npm run install:system
+ */
+
+import { execSync } from 'child_process';
+import { existsSync, mkdirSync, writeFileSync, chmodSync } from 'fs';
+import { join } from 'path';
+
+const CONFIG_DIR = '/etc/clawbox-backup';
+const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
+const STATE_DIR = '/var/lib/clawbox-backup';
+const SERVICE_PATH = '/etc/systemd/system/clawbox-backup.service';
+const NODE_PATH = '/usr/bin/node'; // Adjust if node is elsewhere
+
+// Default configuration
+const DEFAULT_CONFIG = {
+  sources: [
+    {
+      id: 'openclaw-workspace',
+      name: 'OpenClaw Workspace',
+      path: '/home/clawbox/.openclaw/workspace',
+      type: 'directory',
+      exclude: [
+        '**/node_modules',
+        '**/.cache',
+        '**/tmp',
+        '**/.git',
+        '**/.npm',
+      ],
+    },
+    {
+      id: 'openclaw-config',
+      name: 'OpenClaw Configuration',
+      path: '/etc/openclaw',
+      type: 'directory',
+    },
+  ],
+  destinations: [
+    {
+      id: 'local-backup',
+      name: 'Local SSD Backup Store',
+      type: 'local',
+      mountPoint: '/var/backups',
+      path: 'clawbox',
+      retention: {
+        policy: 'keep_last',
+        days: 30,
+      },
+    },
+  ],
+  schedules: [
+    {
+      id: 'daily-incremental',
+      name: 'Daily Incremental',
+      cron: '0 2 * * *', // 2 AM every day
+      sourceId: 'openclaw-workspace',
+      destinationId: 'local-backup',
+      backupType: 'incremental',
+      enabled: true,
+    },
+    {
+      id: 'weekly-full',
+      name: 'Weekly Full',
+      cron: '0 3 * * 0', // 3 AM Sunday
+      sourceId: 'openclaw-workspace',
+      destinationId: 'local-backup',
+      backupType: 'full',
+      enabled: true,
+    },
+  ],
+  globalRetention: {
+    policy: 'keep_last',
+    days: 90,
+  },
+  logLevel: 'info',
+  monitoring: {
+    enabled: true,
+    watchMode: 'realtime',
+    scanIntervalMinutes: 60,
+  },
+  webhookUrl: '', // optional
+};
+
+const SERVICE_CONTENT = `[Unit]
+Description=Clawbox Backup Engine
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/usr/lib/clawbox-backup
+Environment=NODE_ENV=production
+Environment=CONFIG_PATH=${CONFIG_PATH}
+ExecStart=${NODE_PATH} /usr/lib/clawbox-backup/lib/api-server.js
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+# Capabilities
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH CAP_SYS_ADMIN
+AmbientCapabilities=CAP_DAC_READ_SEARCH CAP_SYS_ADMIN
+NoNewPrivileges=false
+
+[Install]
+WantedBy=multi-user.target
+`;
+
+function log(message, type = 'info') {
+  const colors = {
+    info: '\x1b[36m',   // Cyan
+    success: '\x1b[32m', // Green
+    warn: '\x1b[33m',   // Yellow
+    error: '\x1b[31m',  // Red
+    reset: '\x1b[0m',
+  };
+  console.log(`${colors[type]}${message}${colors.reset}`);
+}
+
+function checkPrerequisites() {
+  if (process.getuid && process.getuid() !== 0) {
+    log('This script must be run as root (use sudo)', 'error');
+    process.exit(1);
+  }
+
+  // Check node
+  try {
+    const nodeVersion = execSync('node --version', { encoding: 'utf-8' }).trim();
+    log(`✓ Node.js ${nodeVersion} found`, 'success');
+  } catch {
+    log('✗ Node.js not found. Install Node.js 18+ first.', 'error');
+    process.exit(1);
+  }
+
+  // Check if rsync exists (for incremental backups)
+  try {
+    execSync('rsync --version', { stdio: 'ignore' });
+    log('✓ rsync found', 'success');
+  } catch {
+    log('✗ rsync not found. Install rsync for incremental backups.', 'warn');
+  }
+}
+
+function createDirectories() {
+  log('Creating directories...', 'info');
+  mkdirSync(CONFIG_DIR, { recursive: true });
+  mkdirSync(STATE_DIR, { recursive: true });
+  log('✓ Directories created', 'success');
+}
+
+function writeConfig() {
+  log('Writing configuration...', 'info');
+
+  if (existsSync(CONFIG_PATH)) {
+    const backup = `${CONFIG_PATH}.backup-${Date.now()}`;
+    log(`Config already exists, backing up to ${backup}`, 'warn');
+    execSync(`cp "${CONFIG_PATH}" "${backup}"`);
+  }
+
+  writeFileSync(CONFIG_PATH, JSON.stringify(DEFAULT_CONFIG, null, 2));
+  log(`✓ Configuration written to ${CONFIG_PATH}`, 'success');
+}
+
+function copyFiles() {
+  log('Copying application files...', 'info');
+
+  // Determine install location
+  const cwd = process.cwd();
+  const possiblePaths = [
+    join(cwd, '..', '..'), // running from scripts/
+    cwd,
+    '/usr/lib/clawbox-backup',
+  ];
+
+  let installPath = '';
+  for (const p of possiblePaths) {
+    if (existsSync(join(p, 'package.json'))) {
+      installPath = p;
+      break;
+    }
+  }
+
+  if (!installPath) {
+    log('Could not find project root. Are you running from the project directory?', 'error');
+    process.exit(1);
+  }
+
+  const targetDir = '/usr/lib/clawbox-backup';
+  mkdirSync(targetDir, { recursive: true });
+
+  // Copy lib directory
+  execSync(`cp -r "${join(installPath, 'lib')}" "${targetDir}/"`);
+
+  // Copy package.json only
+  execSync(`cp "${join(installPath, 'package.json')}" "${targetDir}/"`);
+  execSync(`cp "${join(installPath, 'tsconfig.json')}" "${targetDir}/"`);
+
+  log(`✓ Files copied to ${targetDir}`, 'success');
+}
+
+function writeServiceFile() {
+  log('Writing systemd service...', 'info');
+
+  if (existsSync(SERVICE_PATH)) {
+    const backup = `${SERVICE_PATH}.backup-${Date.now()}`;
+    log(`Service already exists, backing up to ${backup}`, 'warn');
+    execSync(`cp "${SERVICE_PATH}" "${backup}"`);
+  }
+
+  writeFileSync(SERVICE_PATH, SERVICE_CONTENT);
+  log(`✓ Service file written to ${SERVICE_PATH}`, 'success');
+}
+
+function reloadSystemd() {
+  log('Reloading systemd...', 'info');
+  execSync('systemctl daemon-reload');
+  log('✓ systemd reloaded', 'success');
+}
+
+function enableAndStart() {
+  log('Enabling and starting service...', 'info');
+  execSync('systemctl enable clawbox-backup');
+  execSync('systemctl start clawbox-backup');
+  log('✓ Service enabled and started', 'success');
+}
+
+function printStatus() {
+  log('Checking service status...', 'info');
+  try {
+    const status = execSync('systemctl status clawbox-backup --no-pager', {
+      encoding: 'utf-8',
+    });
+    console.log(status);
+  } catch (error) {
+    log('Service status check failed: ' + error.message, 'error');
+  }
+}
+
+function printNextSteps() {
+  console.log(`
+╔══════════════════════════════════════════════════════════════╗
+║         CLAWBOX BACKUP INSTALLATION COMPLETE                ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                            ║
+║  Next steps:                                               ║
+║                                                            ║
+║  1. Verify configuration:                                  ║
+║     sudo nano ${CONFIG_PATH}                                ║
+║                                                            ║
+║  2. Check service status:                                  ║
+║     sudo systemctl status clawbox-backup                   ║
+║                                                            ║
+║  3. Test a backup:                                         ║
+║     sudo npm run backup:run -- --source openclaw-workspace \\║
+║       --destination local-backup --type full               ║
+║                                                            ║
+║  4. Access the web UI:                                     ║
+║     Deploy the Next.js app to Vercel, then set:           ║
+║     BACKUP_API_URL=http://YOUR-CLAWBOX-HOST:18789         ║
+║                                                            ║
+║  5. Adjust schedules and sources via the web UI           ║
+║                                                            ║
+║  Service logs:                                             ║
+║     sudo journalctl -u clawbox-backup -f                   ║
+║                                                            ║
+╚══════════════════════════════════════════════════════════════╝
+  `);
+}
+
+function main() {
+  console.log('\n=== Clawbox Backup System Installation ===\n');
+
+  checkPrerequisites();
+  createDirectories();
+  writeConfig();
+  copyFiles();
+  writeServiceFile();
+  reloadSystemd();
+  enableAndStart();
+
+  log('\nWaiting for service to start...', 'info');
+  setTimeout(() => {
+    printStatus();
+    printNextSteps();
+  }, 2000);
+}
+
+main();

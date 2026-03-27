@@ -1,0 +1,56 @@
+{
+  "name": "clawbox-backup",
+  "version": "1.0.0",
+  "description": "Comprehensive backup and restore solution for clawbox with web UI, scheduling, and multi-destination support",
+  "main": "pages/api/index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "jest",
+    "backup:run": "node scripts/backup-runner.js",
+    "monitor:run": "node scripts/monitor.js",
+    "install:system": "node scripts/install-system.js"
+  },
+  "dependencies": {
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0",
+    "express": "^4.18.0",
+    "cors": "^2.8.5",
+    "node-cron": "^3.0.3",
+    "chokidar": "^3.5.3",
+    "rsync": "^0.6.1",
+    "archiver": "^6.0.1",
+    "dropbox": "^10.34.0",
+    "tailwindcss": "^3.4.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.31"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.0.0",
+    "jest": "^29.6.0",
+    "@types/jest": "^29.5.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/fnzeeetoo/clawbox-backup.git"
+  },
+  "keywords": [
+    "backup",
+    "restore",
+    "openclaw",
+    "raspberry-pi",
+    "self-hosted"
+  ],
+  "author": "Breq",
+  "license": "MIT"
+}
