@@ -13,7 +13,7 @@ A comprehensive backup and restore solution for clawbox with web-based UI, sched
 ### 🔄 Backup Types
 - **Full Backups** - Complete system/directory snapshots
 - **Incremental Backups** - Only changed files using rsync algorithm
-- ** Disk Images** - Block-level backups for bare-metal restore
+- **Disk Images** - Block-level backups for bare-metal restore
 
 ### ⏰ Scheduling & Monitoring
 - **Cron-based scheduling** - Flexible backup schedules (hourly, daily, weekly, monthly)
@@ -99,6 +99,30 @@ The entire system runs locally on the clawbox. No external hosting needed.
    sudo /usr/lib/clawbox-backup/scripts/backup-runner.js --source openclaw-workspace --destination local-backup --type full
    ```
 
+### Building the UI from Source (if not using prebuilt)
+
+If you need to rebuild the UI (e.g., after configuration changes):
+
+```bash
+cd /home/clawbox/.openclaw/workspace/clawbox-backup
+
+# Install dependencies
+npm ci
+
+# Build with the correct API URL (set as environment variable)
+BACKUP_API_URL=http://localhost:18790 npm run build
+
+# Copy built assets to system location
+sudo cp -r .next /usr/lib/clawbox-backup/
+
+# IMPORTANT: Next.js standalone expects static files inside the standalone bundle
+sudo mkdir -p /usr/lib/clawbox-backup/.next/standalone/.next
+sudo cp -r /usr/lib/clawbox-backup/.next/static /usr/lib/clawbox-backup/.next/standalone/.next/
+
+# Restart UI service
+sudo systemctl restart clawbox-backup-ui
+```
+
 ### Alternative: Deploy UI to Vercel
 
 If you prefer a separate hosting for the UI (e.g., HTTPS, remote access):
@@ -106,7 +130,7 @@ If you prefer a separate hosting for the UI (e.g., HTTPS, remote access):
 ```bash
 vercel --prod
 ```
-Set environment variable `BACKUP_API_URL` to your clawbox’s reachable address.
+Set environment variable `BACKUP_API_URL` to your clawbox's reachable address.
 
 See [DEPLOY.md](./DEPLOY.md) for full Vercel instructions.
 
