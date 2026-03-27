@@ -12,6 +12,8 @@ export default function DestinationForm({ onSave, onCancel, initialData }) {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [usbMountPoints, setUsbMountPoints] = useState([]); // {device, mountPoint, label}[]
+  const [loadingUsb, setLoadingUsb] = useState(false);
 
   useEffect(() => {
     if (initialData) {
@@ -26,6 +28,39 @@ export default function DestinationForm({ onSave, onCancel, initialData }) {
       });
     }
   }, [initialData]);
+
+  // Fetch USB mount points when type is USB
+  useEffect(() => {
+    if (form.type === 'usb') {
+      setLoadingUsb(true);
+      fetch('/api/usb')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            // Only show partitions (already filtered by API), and dedupe by mountPoint
+            const unique = [];
+            const seen = new Set();
+            for (const dev of data.data) {
+              if (!seen.has(dev.mountPoint)) {
+                seen.add(dev.mountPoint);
+                unique.push(dev);
+              }
+            }
+            setUsbMountPoints(unique);
+            // Auto-select first if not already set
+            if (!form.mountPoint && unique.length > 0) {
+              setForm(f => ({ ...f, mountPoint: unique[0].mountPoint }));
+            }
+          } else {
+            setUsbMountPoints([]);
+          }
+        })
+        .catch(() => setUsbMountPoints([]))
+        .finally(() => setLoadingUsb(false));
+    } else {
+      setUsbMountPoints([]);
+    }
+  }, [form.type]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -113,14 +148,31 @@ export default function DestinationForm({ onSave, onCancel, initialData }) {
       ) : (
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Mount Point</label>
-          <input
-            type="text"
-            required
-            className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-clawbox-500 font-mono"
-            value={form.mountPoint}
-            onChange={(e) => setForm({ ...form, mountPoint: e.target.value })}
-            placeholder={form.type === 'usb' ? '/mnt/usb' : '/mnt/nas'}
-          />
+          {form.type === 'usb' && usbMountPoints.length > 0 ? (
+            <select
+              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-clawbox-500"
+              value={form.mountPoint}
+              onChange={(e) => setForm({ ...form, mountPoint: e.target.value })}
+            >
+              {usbMountPoints.map((dev) => (
+                <option key={dev.device} value={dev.mountPoint}>
+                  {dev.label || dev.device} ({dev.mountPoint})
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              required
+              className="w-full border rounded-lg px-3 py-2 focus:ring-2 focus:ring-clawbox-500 font-mono"
+              value={form.mountPoint}
+              onChange={(e) => setForm({ ...form, mountPoint: e.target.value })}
+              placeholder={form.type === 'usb' ? '/mnt/usb' : '/mnt/nas'}
+            />
+          )}
+          {form.type === 'usb' && loadingUsb && (
+            <p className="text-sm text-gray-500 mt-1">Detecting USB drives...</p>
+          )}
         </div>
       )}
 

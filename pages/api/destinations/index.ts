@@ -9,6 +9,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const fetchRes = await fetch(`${BACKUP_API}/api/destinations`, {
       method,
       headers: { 'Content-Type': 'application/json' },
+      body: method !== 'GET' ? JSON.stringify(req.body) : undefined,
     });
 
     const data = await fetchRes.json();
