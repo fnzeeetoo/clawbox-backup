@@ -76,7 +76,9 @@ npm i -g vercel
 
 # Login (use token if headless)
 # Replace YOUR_VERCEL_TOKEN with your actual token from https://vercel.com/account/tokens
-vercel login --token YOUR_VERCEL_TOKEN
+# vercel login --token YOUR_VERCEL_TOKEN
+#
+# Note: For better security, run `vercel login` interactively to authenticate via browser.
 
 # Deploy
 vercel --prod
