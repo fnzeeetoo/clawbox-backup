@@ -8,7 +8,7 @@ Type=simple
 User=root
 WorkingDirectory=/usr/lib/clawbox-backup
 Environment=NODE_ENV=production
-Environment=BACKUP_API_URL=http://localhost:18789
+Environment=BACKUP_API_URL=http://localhost:18790
 ExecStart=/usr/bin/node /usr/lib/clawbox-backup/.next/standalone/server.js
 Restart=on-failure
 RestartSec=10

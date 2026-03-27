@@ -1,17 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
 import Head from 'next/head';
 
-interface LogEntry {
-  timestamp: string;
-  message: string;
-  level: 'info' | 'warn' | 'error' | 'debug';
-}
-
 export default function Monitoring() {
-  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [logs, setLogs] = useState([]);
   const [connected, setConnected] = useState(false);
-  const [filter, setFilter] = useState<string>('all');
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const [filter, setFilter] = useState('all');
+  const bottomRef = useRef(null);
 
   useEffect(() => {
     // Fetch initial logs
@@ -40,11 +34,11 @@ export default function Monitoring() {
     }
   };
 
-  const addLog = (entry: LogEntry) => {
+  const addLog = (entry) => {
     setLogs(prev => [...prev.slice(-499), entry]); // Keep last 500 lines
   };
 
-  const getLevelColor = (level: string) => {
+  const getLevelColor = (level) => {
     switch (level) {
       case 'error':
         return 'text-red-400';

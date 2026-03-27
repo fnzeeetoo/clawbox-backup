@@ -1,11 +1,10 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { Backup, SystemStats, DestinationStats } from '../types';
 
 export default function Home() {
-  const [backups, setBackups] = useState<Backup[]>([]);
-  const [stats, setStats] = useState<{ system: SystemStats; destinations: DestinationStats[] } | null>(null);
+  const [backups, setBackups] = useState([]);
+  const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,7 +34,7 @@ export default function Home() {
     }
   };
 
-  const formatBytes = (bytes: number) => {
+  const formatBytes = (bytes) => {
     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
     let size = bytes;
     let unitIndex = 0;
@@ -46,7 +45,7 @@ export default function Home() {
     return `${size.toFixed(2)} ${units[unitIndex]}`;
   };
 
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr) => {
     return new Date(dateStr).toLocaleString('en-US', {
       year: 'numeric',
       month: 'short',
@@ -56,7 +55,7 @@ export default function Home() {
     });
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status) => {
     switch (status) {
       case 'completed':
       case 'verified':

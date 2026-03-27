@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
-import { BackupSource, BackupDestination, BackupSchedule } from '../types';
 
 export default function Configure() {
-  const [activeTab, setActiveTab] = useState<'sources' | 'destinations' | 'schedules'>('sources');
-  const [sources, setSources] = useState<BackupSource[]>([]);
-  const [destinations, setDestinations] = useState<BackupDestination[]>([]);
-  const [schedules, setSchedules] = useState<BackupSchedule[]>([]);
+  const [activeTab, setActiveTab] = useState('sources');
+  const [sources, setSources] = useState([]);
+  const [destinations, setDestinations] = useState([]);
+  const [schedules, setSchedules] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -78,7 +77,7 @@ export default function Configure() {
                     ].map((tab) => (
                       <button
                         key={tab.id}
-                        onClick={() => setActiveTab(tab.id as any)}
+                        onClick={() => setActiveTab(tab.id)}
                         className={`w-full flex items-center justify-between px-4 py-3 rounded-lg text-left ${
                           activeTab === tab.id
                             ? 'bg-clawbox-100 text-clawbox-900 font-medium'

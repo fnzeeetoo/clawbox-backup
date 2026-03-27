@@ -18,7 +18,7 @@ Both should show `active (running)`.
 ## 2. Check API Health
 
 ```bash
-curl -s http://localhost:18789/api/backups | python3 -m json.tool
+curl -s http://localhost:18790/api/backups | python3 -m json.tool
 ```
 
 Expected: JSON array (empty `[]` if no backups yet).
@@ -111,7 +111,7 @@ sudo rm -rf /var/backups/clawbox/clawbox-backup-openclaw-workspace-full-*
 
 ## Expected Network Behavior
 
-- UI → API calls to `http://localhost:18789` (same host)
+- UI → API calls to `http://localhost:18790` (same host)
 - No external network required except for optional cloud destinations (Dropbox)
 
 ## Troubleshooting

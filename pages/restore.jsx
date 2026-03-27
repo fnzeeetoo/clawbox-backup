@@ -2,18 +2,17 @@ import { useEffect, useState } from 'react';
 import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
-import { Backup } from '../types';
 
 export default function Restore() {
   const router = useRouter();
   const { backup: backupId } = router.query;
 
-  const [backups, setBackups] = useState<Backup[]>([]);
-  const [selectedBackup, setSelectedBackup] = useState<Backup | null>(null);
+  const [backups, setBackups] = useState([]);
+  const [selectedBackup, setSelectedBackup] = useState(null);
   const [targetPath, setTargetPath] = useState('');
   const [restoring, setRestoring] = useState(false);
-  const [logs, setLogs] = useState<string[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [logs, setLogs] = useState([]);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     fetchBackups();
@@ -41,7 +40,7 @@ export default function Restore() {
     }
   };
 
-  const getDefaultRestorePath = (backup: Backup): string => {
+  const getDefaultRestorePath = (backup) => {
     // Derive original path from metadata or construct from ID
     if (backup.metadata?.sourcePath) {
       return backup.metadata.sourcePath;
@@ -74,7 +73,7 @@ export default function Restore() {
         const err = await res.json();
         setError(err.error || 'Restore failed');
       }
-    } catch (error: any) {
+    } catch (error) {
       setError(error.message);
     } finally {
       setRestoring(false);

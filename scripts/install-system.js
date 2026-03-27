@@ -16,6 +16,7 @@ const CONFIG_PATH = join(CONFIG_DIR, 'config.json');
 const STATE_DIR = '/var/lib/clawbox-backup';
 const SERVICE_PATH = '/etc/systemd/system/clawbox-backup.service';
 const NODE_PATH = '/usr/bin/node'; // Adjust if node is elsewhere
+const BACKUP_PORT = 18790;
 
 // Default configuration
 const DEFAULT_CONFIG = {
@@ -97,6 +98,7 @@ User=root
 WorkingDirectory=/usr/lib/clawbox-backup
 Environment=NODE_ENV=production
 Environment=CONFIG_PATH=${CONFIG_PATH}
+Environment=PORT=${BACKUP_PORT}
 ExecStart=${NODE_PATH} /usr/lib/clawbox-backup/lib/api-server.js
 Restart=on-failure
 RestartSec=10
@@ -117,7 +119,7 @@ Type=simple
 User=root
 WorkingDirectory=/usr/lib/clawbox-backup
 Environment=NODE_ENV=production
-Environment=BACKUP_API_URL=http://localhost:18789
+Environment=BACKUP_API_URL=http://localhost:${BACKUP_PORT}
 ExecStart=${NODE_PATH} /usr/lib/clawbox-backup/.next/standalone/server.js
 Restart=on-failure
 RestartSec=10
@@ -252,9 +254,13 @@ function enableAndStart() {
   // Build and start UI
   log('Building Next.js UI...', 'info');
   try {
-    execSync('npm ci --only=production', { cwd: '/usr/lib/clawbox-backup', stdio: 'inherit' });
-    execSync('npm run build', { cwd: '/usr/lib/clawbox-backup', stdio: 'inherit' });
+    // Use npm install (not ci) since we may not have a lockfile in /usr/lib/clawbox-backup
+    execSync('npm install --production', { cwd: '/usr/lib/clawbox-backup', stdio: 'inherit' });
+    execSync('npm run build', { cwd: '/usr/lib/clawbox-backup', stdio: 'inherit', env: { ...process.env, BACKUP_API_URL: `http://localhost:${BACKUP_PORT}` } });
     log('✓ UI build complete', 'success');
+    log('Copying static assets for standalone UI...', 'info');
+    execSync('mkdir -p /usr/lib/clawbox-backup/.next/standalone/.next && cp -r /usr/lib/clawbox-backup/.next/static /usr/lib/clawbox-backup/.next/standalone/.next/', { stdio: 'inherit' });
+    log('✓ Static assets copied', 'success');
   } catch (buildErr) {
     log('⚠ UI build failed, UI service may not start: ' + buildErr.message, 'warn');
   }
@@ -280,7 +286,7 @@ function printNextSteps() {
 ║         CLAWBOX BACKUP INSTALLATION COMPLETE                ║
 ╠══════════════════════════════════════════════════════════════╣
 ║                                                            ║
-║  ✓ Backup engine API running on port 18789                ║
+║  ✓ Backup engine API running on port ${BACKUP_PORT}                ║
 ║  ✓ Web UI running on port 3000 (localhost)               ║
 ║                                                            ║
 ║  Next steps:                                               ║

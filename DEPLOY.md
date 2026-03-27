@@ -36,7 +36,7 @@ sudo systemctl status clawbox-backup
 sudo journalctl -u clawbox-backup -f
 
 # Test API endpoint
-curl http://localhost:18789/api/backups
+curl http://localhost:18790/api/backups
 ```
 
 ### Configure Backups
@@ -86,7 +86,7 @@ vercel --prod
 
 Set environment variable during deploy:
 ```
-BACKUP_API_URL=http://<clawbox-ip>:18789
+BACKUP_API_URL=http://<clawbox-ip>:18790
 ```
 
 Replace `<clawbox-ip>` with your clawbox's local IP address (e.g., 192.168.1.100).
@@ -97,7 +97,7 @@ Replace `<clawbox-ip>` with your clawbox's local IP address (e.g., 192.168.1.100
 2. Import repository: `fnzeeetoo/clawbox-backup`
 3. Add environment variable:
    - Name: `BACKUP_API_URL`
-   - Value: `http://<clawbox-ip>:18789`
+   - Value: `http://<clawbox-ip>:18790`
 4. Click Deploy
 
 ### Post-Deploy
@@ -110,7 +110,7 @@ After deployment completes:
 
 ### Firewall / Network
 
-Ensure clawbox allows inbound connections on port 18789 if Vercel-hosted UI needs to reach it directly. Alternatively, you can run the UI locally on clawbox (`npm run dev` and access via localhost) or set up SSH tunneling.
+Ensure clawbox allows inbound connections on port 18790 if Vercel-hosted UI needs to reach it directly. Alternatively, you can run the UI locally on clawbox (`npm run dev` and access via localhost) or set up SSH tunneling.
 
 ## Part 3: Create Planka Card (Manual)
 
@@ -135,7 +135,7 @@ Or add manually in Planka UI under **Mission Control > Business Pipeline > Build
 ### Web UI cannot reach engine
 - Ensure `BACKUP_API_URL` is set correctly in Vercel environment variables
 - Verify clawbox is reachable from Vercel (public IP or via VPN/tailnet)
-- Test from external: `curl http://<clawbox-ip>:18789/api/backups`
+- Test from external: `curl http://<clawbox-ip>:18790/api/backups`
 
 ### Backup fails with disk space
 - Check destination free space: `df -h`

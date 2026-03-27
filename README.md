@@ -78,7 +78,7 @@ The entire system runs locally on the clawbox. No external hosting needed.
    sudo npm run install:system
    ```
    This installs:
-   - `clawbox-backup` service (API on port 18789)
+   - `clawbox-backup` service (API on port 18790)
    - `clawbox-backup-ui` service (web UI on port 3000)
    - Default config at `/etc/clawbox-backup/config.json`
 
@@ -268,7 +268,7 @@ Examples:
 
 ## API Reference
 
-The backup engine exposes a REST API on port 18789 (or configured):
+The backup engine exposes a REST API on port 18790 (or configured):
 
 - `GET /api/backups` - List all backups
 - `GET /api/backups/:id` - Get backup details

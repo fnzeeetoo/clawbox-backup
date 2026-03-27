@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 
-const BACKUP_API = process.env.BACKUP_API_URL || 'http://localhost:18789';
+const BACKUP_API = process.env.BACKUP_API_URL || 'http://localhost:18790';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {

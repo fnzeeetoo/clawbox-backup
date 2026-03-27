@@ -2,6 +2,7 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
+  output: 'standalone', // create .next/standalone with server.js
   // Enable API routes to handle CORS from local engine
   async headers() {
     return [
@@ -18,9 +19,9 @@ const nextConfig = {
   },
   // Environmental variable handling
   env: {
-    BACKUP_API_URL: process.env.BACKUP_API_URL || 'http://localhost:18789',
+    BACKUP_API_URL: process.env.BACKUP_API_URL || 'http://localhost:18790',
     CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;
