@@ -12,49 +12,27 @@ export class StorageManager {
 
   async detectUSBDevices() {
     const devices = [];
-    const self = this;
 
     try {
-      const { stdout } = await execAsync('lsblk -J');
-      const json = JSON.parse(stdout);
-      const blockdevices = json.blockdevices || [];
+      const { stdout } = await execAsync('lsblk -J -o NAME,LABEL,SIZE,TYPE,MOUNTPOINT,TRAN');
+      const data = JSON.parse(stdout);
 
-      const all = [];
-      (function flatten(arr) {
-        for (const dev of arr) {
-          all.push(dev);
-          if (dev.children) flatten(dev.children);
-        }
-      })(blockdevices);
-
-      for (const dev of all) {
-        const isUSB = dev.tran === 'usb' || dev.rm === true;
+      for (const device of data.blockdevices) {
+        // Only include actual USB devices (TRAN=usb) or explicitly removable media
+        const isUSB = device.tran === 'usb' || device.name.startsWith('sd') && !device.name.includes('nvme');
         if (!isUSB) continue;
 
-        const name = dev.name;
-        const mountPoint = dev.mountpoint || (dev.mountpoints && dev.mountpoints[0]) || null;
+        if (device.type === 'disk' || device.type === 'part') {
+          const devName = `/dev/${device.name}`;
+          const mountPoint = device.mountpoint || null;
+          const label = device.label || `USB-${device.name}`;
 
-        if (dev.type === 'disk') {
-          if (dev.children) {
-            const mountedChild = dev.children.find(c => c.mountpoint || (c.mountpoints && c.mountpoints[0]));
-            if (mountedChild) {
-              const childMount = mountedChild.mountpoint || (mountedChild.mountpoints && mountedChild.mountpoints[0]);
-              devices.push({
-                device: `/dev/${name}`,
-                mountPoint: childMount,
-                label: dev.label || `USB-${name}`,
-                size: self.parseSize(dev.size),
-                transport: dev.tran || 'usb',
-              });
-            }
-          }
-        } else if (dev.type === 'part' && mountPoint) {
           devices.push({
-            device: `/dev/${name}`,
+            device: devName,
             mountPoint,
-            label: dev.label || `USB-${name}`,
-            size: self.parseSize(dev.size),
-            transport: dev.tran || 'usb',
+            label,
+            size: this.parseSize(device.size),
+            transport: device.tran || 'usb',
           });
         }
       }
