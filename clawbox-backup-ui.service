@@ -1,0 +1,19 @@
+[Unit]
+Description=Clawbox Backup UI
+After=network-online.target clawbox-backup.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/usr/lib/clawbox-backup
+Environment=NODE_ENV=production
+Environment=BACKUP_API_URL=http://localhost:18789
+ExecStart=/usr/bin/node /usr/lib/clawbox-backup/.next/standalone/server.js
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

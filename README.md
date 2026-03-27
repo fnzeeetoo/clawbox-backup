@@ -68,28 +68,50 @@ A comprehensive backup and restore solution for clawbox with web-based UI, sched
 
 ## Installation
 
-### Quick Start
+### Quick Start (Local Deployment)
 
-See **[DEPLOY.md](./DEPLOY.md)** for complete step-by-step deployment instructions.
+The entire system runs locally on the clawbox. No external hosting needed.
 
-In short:
-
-1. **Deploy Web UI to Vercel**
+1. **Install backup engine and UI**
    ```bash
-   vercel --prod
-   ```
-   Set environment variable `BACKUP_API_URL` to your clawbox's address (e.g., `http://192.168.1.100:18789`).
-
-2. **Install Backup Engine on Clawbox**
-   ```bash
+   cd /home/clawbox/.openclaw/workspace/clawbox-backup
    sudo npm run install:system
    ```
-   This installs the systemd service and creates default config.
+   This installs:
+   - `clawbox-backup` service (API on port 18789)
+   - `clawbox-backup-ui` service (web UI on port 3000)
+   - Default config at `/etc/clawbox-backup/config.json`
 
-3. **Configure** sources, destinations, and schedules via the web UI.
+2. **Verify services are running**
+   ```bash
+   sudo systemctl status clawbox-backup
+   sudo systemctl status clawbox-backup-ui
+   ```
+
+3. **Open the web UI**
+   - On the clawbox: http://localhost:3000
+   - From another device on your network: http://<clawbox-ip>:3000
+
+4. **Configure** backup sources, destinations, and schedules via the UI.
+
+5. **Test** a manual backup from the UI or via CLI:
+   ```bash
+   sudo npm run backup:run -- --source openclaw-workspace --destination local-backup --type full
+   ```
+
+### Alternative: Deploy UI to Vercel
+
+If you prefer a separate hosting for the UI (e.g., HTTPS, remote access):
+
+```bash
+vercel --prod
+```
+Set environment variable `BACKUP_API_URL` to your clawbox’s reachable address.
+
+See [DEPLOY.md](./DEPLOY.md) for full Vercel instructions.
 
 ### Detailed Guide
-- [DEPLOY.md](./DEPLOY.md) – Full installation, configuration, and troubleshooting
+- [DEPLOY.md](./DEPLOY.md) – Configuration, troubleshooting, and Vercel deployment
 
 ### 3. Systemd Service
 The installer creates:

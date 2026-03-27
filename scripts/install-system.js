@@ -103,10 +103,26 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 
-# Capabilities
-CapabilityBoundingSet=CAP_DAC_READ_SEARCH CAP_SYS_ADMIN
-AmbientCapabilities=CAP_DAC_READ_SEARCH CAP_SYS_ADMIN
-NoNewPrivileges=false
+[Install]
+WantedBy=multi-user.target
+`;
+
+const UI_SERVICE_CONTENT = `[Unit]
+Description=Clawbox Backup UI
+After=network-online.target clawbox-backup.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/usr/lib/clawbox-backup
+Environment=NODE_ENV=production
+Environment=BACKUP_API_URL=http://localhost:18789
+ExecStart=${NODE_PATH} /usr/lib/clawbox-backup/.next/standalone/server.js
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
 
 [Install]
 WantedBy=multi-user.target
@@ -170,10 +186,9 @@ function writeConfig() {
 function copyFiles() {
   log('Copying application files...', 'info');
 
-  // Determine install location
   const cwd = process.cwd();
   const possiblePaths = [
-    join(cwd, '..', '..'), // running from scripts/
+    join(cwd, '..', '..'),
     cwd,
     '/usr/lib/clawbox-backup',
   ];
@@ -194,27 +209,33 @@ function copyFiles() {
   const targetDir = '/usr/lib/clawbox-backup';
   mkdirSync(targetDir, { recursive: true });
 
-  // Copy lib directory
-  execSync(`cp -r "${join(installPath, 'lib')}" "${targetDir}/"`);
-
-  // Copy package.json only
-  execSync(`cp "${join(installPath, 'package.json')}" "${targetDir}/"`);
-  execSync(`cp "${join(installPath, 'tsconfig.json')}" "${targetDir}/"`);
+  // Copy all source files (lib, pages, public, styles, etc.)
+  execSync(`cp -r "${installPath}/"* "${targetDir}/"`);
 
   log(`✓ Files copied to ${targetDir}`, 'success');
 }
 
 function writeServiceFile() {
-  log('Writing systemd service...', 'info');
+  log('Writing systemd services...', 'info');
 
+  // Backup engine service
   if (existsSync(SERVICE_PATH)) {
     const backup = `${SERVICE_PATH}.backup-${Date.now()}`;
     log(`Service already exists, backing up to ${backup}`, 'warn');
     execSync(`cp "${SERVICE_PATH}" "${backup}"`);
   }
-
   writeFileSync(SERVICE_PATH, SERVICE_CONTENT);
-  log(`✓ Service file written to ${SERVICE_PATH}`, 'success');
+  log(`✓ Backup engine service written to ${SERVICE_PATH}`, 'success');
+
+  // UI service
+  const UI_SERVICE_PATH = '/etc/systemd/system/clawbox-backup-ui.service';
+  if (existsSync(UI_SERVICE_PATH)) {
+    const backup = `${UI_SERVICE_PATH}.backup-${Date.now()}`;
+    log(`UI service already exists, backing up to ${backup}`, 'warn');
+    execSync(`cp "${UI_SERVICE_PATH}" "${backup}"`);
+  }
+  writeFileSync(UI_SERVICE_PATH, UI_SERVICE_CONTENT);
+  log(`✓ UI service written to ${UI_SERVICE_PATH}`, 'success');
 }
 
 function reloadSystemd() {
@@ -224,10 +245,21 @@ function reloadSystemd() {
 }
 
 function enableAndStart() {
-  log('Enabling and starting service...', 'info');
+  log('Enabling and starting services...', 'info');
   execSync('systemctl enable clawbox-backup');
+  execSync('systemctl enable clawbox-backup-ui');
   execSync('systemctl start clawbox-backup');
-  log('✓ Service enabled and started', 'success');
+  // Build and start UI
+  log('Building Next.js UI...', 'info');
+  try {
+    execSync('npm ci --only=production', { cwd: '/usr/lib/clawbox-backup', stdio: 'inherit' });
+    execSync('npm run build', { cwd: '/usr/lib/clawbox-backup', stdio: 'inherit' });
+    log('✓ UI build complete', 'success');
+  } catch (buildErr) {
+    log('⚠ UI build failed, UI service may not start: ' + buildErr.message, 'warn');
+  }
+  execSync('systemctl start clawbox-backup-ui');
+  log('✓ Services enabled and started', 'success');
 }
 
 function printStatus() {
@@ -248,6 +280,9 @@ function printNextSteps() {
 ║         CLAWBOX BACKUP INSTALLATION COMPLETE                ║
 ╠══════════════════════════════════════════════════════════════╣
 ║                                                            ║
+║  ✓ Backup engine API running on port 18789                ║
+║  ✓ Web UI running on port 3000 (localhost)               ║
+║                                                            ║
 ║  Next steps:                                               ║
 ║                                                            ║
 ║  1. Verify configuration:                                  ║
@@ -255,19 +290,21 @@ function printNextSteps() {
 ║                                                            ║
 ║  2. Check service status:                                  ║
 ║     sudo systemctl status clawbox-backup                   ║
+║     sudo systemctl status clawbox-backup-ui                ║
 ║                                                            ║
-║  3. Test a backup:                                         ║
+║  3. Access the web UI:                                     ║
+║     Open http://localhost:3000 in your browser             ║
+║     (Or http://<clawbox-ip>:3000 from another device)     ║
+║                                                            ║
+║  4. Test a backup via the UI or manually:                 ║
 ║     sudo npm run backup:run -- --source openclaw-workspace \\║
 ║       --destination local-backup --type full               ║
 ║                                                            ║
-║  4. Access the web UI:                                     ║
-║     Deploy the Next.js app to Vercel, then set:           ║
-║     BACKUP_API_URL=http://YOUR-CLAWBOX-HOST:18789         ║
-║                                                            ║
 ║  5. Adjust schedules and sources via the web UI           ║
 ║                                                            ║
-║  Service logs:                                             ║
-║     sudo journalctl -u clawbox-backup -f                   ║
+║  Logs:                                                     ║
+║     sudo journalctl -u clawbox-backup -f                  ║
+║     sudo journalctl -u clawbox-backup-ui -f               ║
 ║                                                            ║
 ╚══════════════════════════════════════════════════════════════╝
   `);
