@@ -96,7 +96,7 @@ The entire system runs locally on the clawbox. No external hosting needed.
 
 5. **Test** a manual backup from the UI or via CLI:
    ```bash
-   sudo npm run backup:run -- --source openclaw-workspace --destination local-backup --type full
+   sudo /usr/lib/clawbox-backup/scripts/backup-runner.js --source openclaw-workspace --destination local-backup --type full
    ```
 
 ### Alternative: Deploy UI to Vercel
@@ -112,6 +112,19 @@ See [DEPLOY.md](./DEPLOY.md) for full Vercel instructions.
 
 ### Detailed Guide
 - [DEPLOY.md](./DEPLOY.md) – Configuration, troubleshooting, and Vercel deployment
+
+## Rollback / Uninstall
+
+If you need to remove the system:
+
+```bash
+sudo ./scripts/rollback.sh
+```
+
+Options:
+- `--keep-data` preserves `/var/lib/clawbox-backup` (backup metadata) while removing services and configuration.
+
+After rollback you can reinstall with `sudo npm run install:system`.
 
 ### 3. Systemd Service
 The installer creates:
