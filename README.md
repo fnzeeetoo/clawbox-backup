@@ -68,32 +68,28 @@ A comprehensive backup and restore solution for clawbox with web-based UI, sched
 
 ## Installation
 
-### 1. Deploy Web UI to Vercel
-```bash
-cd clawbox-backup
-vercel --prod
-```
+### Quick Start
 
-Configure environment variables in Vercel:
-```
-BACKUP_API_URL=http://clawbox:18789
-```
+See **[DEPLOY.md](./DEPLOY.md)** for complete step-by-step deployment instructions.
 
-### 2. Install Backup Engine on Clawbox
-```bash
-# Clone repository
-git clone https://github.com/fnzeeetoo/clawbox-backup.git
-cd clawbox-backup
+In short:
 
-# Install dependencies
-npm ci --only=production
+1. **Deploy Web UI to Vercel**
+   ```bash
+   vercel --prod
+   ```
+   Set environment variable `BACKUP_API_URL` to your clawbox's address (e.g., `http://192.168.1.100:18789`).
 
-# Run system installation (creates systemd service, config dirs)
-npm run install:system
+2. **Install Backup Engine on Clawbox**
+   ```bash
+   sudo npm run install:system
+   ```
+   This installs the systemd service and creates default config.
 
-# Configure first backup set via web UI
-# The backup engine will automatically register with the web UI
-```
+3. **Configure** sources, destinations, and schedules via the web UI.
+
+### Detailed Guide
+- [DEPLOY.md](./DEPLOY.md) – Full installation, configuration, and troubleshooting
 
 ### 3. Systemd Service
 The installer creates:
