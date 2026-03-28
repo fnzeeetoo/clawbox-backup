@@ -5,7 +5,11 @@ import Link from 'next/link';
 export default function Home() {
   const [backups, setBackups] = useState([]);
   const [stats, setStats] = useState(null);
+  const [destinationsConfig, setDestinationsConfig] = useState([]);
+  const [sourcesConfig, setSourcesConfig] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [sortField, setSortField] = useState('timestamp');
+  const [sortDir, setSortDir] = useState('desc');
 
   useEffect(() => {
     fetchData();
@@ -13,9 +17,11 @@ export default function Home() {
 
   const fetchData = async () => {
     try {
-      const [backupsRes, statsRes] = await Promise.all([
+      const [backupsRes, statsRes, destsRes, sourcesRes] = await Promise.all([
         fetch('/api/backups'),
         fetch('/api/stats'),
+        fetch('/api/destinations'),
+        fetch('/api/sources'),
       ]);
 
       if (backupsRes.ok) {
@@ -26,6 +32,16 @@ export default function Home() {
       if (statsRes.ok) {
         const statsData = await statsRes.json();
         setStats(statsData.data);
+      }
+
+      if (destsRes.ok) {
+        const destsData = await destsRes.json();
+        setDestinationsConfig(destsData.data || []);
+      }
+
+      if (sourcesRes.ok) {
+        const sourcesData = await sourcesRes.json();
+        setSourcesConfig(sourcesData.data || []);
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -69,14 +85,48 @@ export default function Home() {
     }
   };
 
+  // Build maps
+  const destNameMap = {};
+  destinationsConfig.forEach(d => { destNameMap[d.id] = d.name; });
+
+  const sourceNameMap = {};
+  sourcesConfig.forEach(s => { sourceNameMap[s.id] = s.name; });
+
+  // Sort backups
+  const sortedBackups = [...backups].sort((a, b) => {
+    let valA = a[sortField];
+    let valB = b[sortField];
+    if (sortField === 'timestamp') {
+      valA = new Date(valA).getTime();
+      valB = new Date(valB).getTime();
+    }
+    if (valA < valB) return sortDir === 'asc' ? -1 : 1;
+    if (valA > valB) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('desc');
+    }
+  };
+
+  const getSortIcon = (field) => {
+    if (sortField !== field) return '↕';
+    return sortDir === 'asc' ? '↑' : '↓';
+  };
+
   return (
     <>
       <Head>
         <title>Clawbox Backup Dashboard</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
 
       <div className="min-h-screen bg-gray-50">
-        {/* Header */}
         <header className="bg-white shadow-sm border-b">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
             <h1 className="text-2xl font-bold text-gray-900">Clawbox Backup</h1>
@@ -133,27 +183,30 @@ export default function Home() {
                       <p className="text-gray-500">No destinations configured</p>
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {stats.destinations.map((dest) => (
-                          <div key={dest.destinationId} className="border rounded-lg p-4">
-                            <h4 className="font-medium text-gray-900">{dest.destinationId}</h4>
-                            <div className="mt-3 space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">Backups:</span>
-                                <span className="font-medium">{dest.totalBackups}</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-500">Total Size:</span>
-                                <span className="font-medium">{formatBytes(dest.totalSize)}</span>
-                              </div>
-                              {dest.newestBackup && (
+                        {stats.destinations.map((dest) => {
+                          const displayName = destNameMap[dest.destinationId] || dest.destinationId;
+                          return (
+                            <div key={dest.destinationId} className="border rounded-lg p-4">
+                              <h4 className="font-medium text-gray-900">{displayName}</h4>
+                              <div className="mt-3 space-y-2 text-sm">
                                 <div className="flex justify-between">
-                                  <span className="text-gray-500">Latest:</span>
-                                  <span className="font-medium">{formatDate(dest.newestBackup)}</span>
+                                  <span className="text-gray-500">Backups:</span>
+                                  <span className="font-medium">{dest.totalBackups}</span>
                                 </div>
-                              )}
+                                <div className="flex justify-between">
+                                  <span className="text-gray-500">Total Size:</span>
+                                  <span className="font-medium">{formatBytes(dest.totalSize)}</span>
+                                </div>
+                                {dest.newestBackup && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-500">Latest:</span>
+                                    <span className="font-medium">{formatDate(dest.newestBackup)}</span>
+                                  </div>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     )}
                   </div>
@@ -165,7 +218,7 @@ export default function Home() {
                 <div className="px-6 py-4 border-b flex justify-between items-center">
                   <h2 className="text-lg font-medium text-gray-900">Recent Backups</h2>
                   <button
-                    onClick={() => window.location.reload()}
+                    onClick={fetchData}
                     className="px-3 py-1 text-sm bg-clawbox-100 text-clawbox-700 rounded hover:bg-clawbox-200"
                   >
                     Refresh
@@ -185,17 +238,33 @@ export default function Home() {
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Timestamp</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Size</th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onClick={() => handleSort('sourceId')}>
+                            Source {getSortIcon('sourceId')}
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onClick={() => handleSort('id')}>
+                            ID {getSortIcon('id')}
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onClick={() => handleSort('type')}>
+                            Type {getSortIcon('type')}
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onClick={() => handleSort('timestamp')}>
+                            Timestamp {getSortIcon('timestamp')}
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onClick={() => handleSort('size')}>
+                            Size {getSortIcon('size')}
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onClick={() => handleSort('status')}>
+                            Status {getSortIcon('status')}
+                          </th>
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
                       </thead>
                       <tbody className="bg-white divide-y divide-gray-200">
-                        {backups.slice(0, 20).map((backup) => (
+                        {sortedBackups.slice(0, 50).map((backup) => (
                           <tr key={backup.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {sourceNameMap[backup.sourceId] || backup.sourceId}
+                            </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
                               {backup.id}
                             </td>
