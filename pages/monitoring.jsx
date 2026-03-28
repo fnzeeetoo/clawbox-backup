@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 
 export default function Monitoring() {
   const [logs, setLogs] = useState([]);
@@ -83,6 +84,13 @@ export default function Monitoring() {
                 <option value="error">Error</option>
                 <option value="debug">Debug</option>
               </select>
+              <nav className="flex space-x-4 ml-4">
+                <Link href="/" className="text-gray-300 hover:text-white">Dashboard</Link>
+                <Link href="/configure" className="text-gray-300 hover:text-white">Configure</Link>
+                <Link href="/backup-now" className="text-gray-300 hover:text-white">Backup Now</Link>
+                <Link href="/restore" className="text-gray-300 hover:text-white">Restore</Link>
+                <Link href="/monitoring" className="text-white font-medium">Logs</Link>
+              </nav>
             </div>
           </div>
         </header>

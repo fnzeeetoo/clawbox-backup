@@ -98,7 +98,7 @@ export default function Home() {
           ) : (
             <>
               {/* Stats Cards */}
-              {stats && (
+              {stats && stats.system && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                   <div className="bg-white rounded-lg shadow p-6">
                     <h3 className="text-sm font-medium text-gray-500">System Uptime</h3>
@@ -115,14 +115,14 @@ export default function Home() {
                   <div className="bg-white rounded-lg shadow p-6">
                     <h3 className="text-sm font-medium text-gray-500">Backup Destinations</h3>
                     <p className="mt-2 text-3xl font-bold text-gray-900">
-                      {stats.destinations.length}
+                      {stats.destinations?.length || 0}
                     </p>
                   </div>
                 </div>
               )}
 
               {/* Destinations */}
-              {stats && (
+              {stats && stats.destinations && (
                 <div className="bg-white shadow rounded-lg mb-8">
                   <div className="px-6 py-4 border-b">
                     <h2 className="text-lg font-medium text-gray-900">Backup Destinations</h2>
@@ -147,7 +147,7 @@ export default function Home() {
                               {dest.newestBackup && (
                                 <div className="flex justify-between">
                                   <span className="text-gray-500">Latest:</span>
-                                  <span className="font-medium">{formatDate(dest.newestBackup.toISOString())}</span>
+                                  <span className="font-medium">{formatDate(dest.newestBackup)}</span>
                                 </div>
                               )}
                             </div>

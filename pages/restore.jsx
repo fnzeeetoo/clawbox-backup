@@ -93,7 +93,9 @@ export default function Restore() {
             <nav className="flex space-x-4">
               <Link href="/" className="text-gray-600 hover:text-clawbox-600">Dashboard</Link>
               <Link href="/configure" className="text-gray-600 hover:text-clawbox-600">Configure</Link>
+              <Link href="/backup-now" className="text-gray-600 hover:text-clawbox-600">Backup Now</Link>
               <Link href="/restore" className="text-clawbox-600 font-medium">Restore</Link>
+              <Link href="/monitoring" className="text-gray-600 hover:text-clawbox-600">Logs</Link>
             </nav>
           </div>
         </header>
