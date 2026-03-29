@@ -8,7 +8,7 @@ export default function Home() {
   const [destinationsConfig, setDestinationsConfig] = useState([]);
   const [sourcesConfig, setSourcesConfig] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [sortField, setSortField] = useState('timestamp');
+  const [sortField, setSortField] = useState('startedAt');
   const [sortDir, setSortDir] = useState('desc');
 
   useEffect(() => {
@@ -96,7 +96,7 @@ export default function Home() {
   const sortedBackups = [...backups].sort((a, b) => {
     let valA = a[sortField];
     let valB = b[sortField];
-    if (sortField === 'timestamp') {
+    if (sortField === 'startedAt') {
       valA = new Date(valA).getTime();
       valB = new Date(valB).getTime();
     }
@@ -225,84 +225,73 @@ export default function Home() {
                   </button>
                 </div>
                 <div className="overflow-x-auto">
-                  {backups.length === 0 ? (
-                    <div className="p-6 text-center text-gray-500">
-                      <p>No backups have been run yet.</p>
-                      <p className="mt-2">
-                        <Link href="/configure" className="text-clawbox-600 hover:underline">
-                          Configure your first backup
-                        </Link>
-                      </p>
-                    </div>
-                  ) : (
-                    <table className="min-w-full divide-y divide-gray-200">
-                      <thead className="bg-gray-50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onClick={() => handleSort('sourceId')}>
-                            Source {getSortIcon('sourceId')}
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onClick={() => handleSort('id')}>
-                            ID {getSortIcon('id')}
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onClick={() => handleSort('type')}>
-                            Type {getSortIcon('type')}
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onClick={() => handleSort('timestamp')}>
-                            Timestamp {getSortIcon('timestamp')}
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onClick={() => handleSort('size')}>
-                            Size {getSortIcon('size')}
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer" onClick={() => handleSort('status')}>
-                            Status {getSortIcon('status')}
-                          </th>
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                  <table className="min-w-full divide-y divide-gray-200 text-sm">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer w-48" onClick={() => handleSort('sourceId')}>
+                          Source {getSortIcon('sourceId')}
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer w-64" onClick={() => handleSort('id')}>
+                          ID {getSortIcon('id')}
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer w-24" onClick={() => handleSort('type')}>
+                          Type {getSortIcon('type')}
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer w-40" onClick={() => handleSort('startedAt')}>
+                          Timestamp {getSortIcon('startedAt')}
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer w-24" onClick={() => handleSort('size')}>
+                          Size {getSortIcon('size')}
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer w-24" onClick={() => handleSort('status')}>
+                          Status {getSortIcon('status')}
+                        </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-24">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {sortedBackups.slice(0, 50).map((backup) => (
+                        <tr key={backup.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 truncate max-w-xs" title={sourceNameMap[backup.sourceId] || backup.sourceId}>
+                            {sourceNameMap[backup.sourceId] || backup.sourceId}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm font-mono text-gray-900 truncate max-w-xs" title={backup.id}>
+                            {backup.id}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              backup.type === 'full' ? 'bg-purple-100 text-purple-800' :
+                              backup.type === 'disk-image' ? 'bg-orange-100 text-orange-800' :
+                              'bg-blue-100 text-blue-800'
+                            }`}>
+                              {backup.type}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                            {formatDate(backup.startedAt)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                            {formatBytes(backup.size)}
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(backup.status)}`}>
+                              {backup.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 whitespace-nowrap text-sm">
+                            {backup.status === 'completed' && (
+                              <Link
+                                href={`/restore?backup=${backup.id}`}
+                                className="text-clawbox-600 hover:text-clawbox-900 font-medium"
+                              >
+                                Restore
+                              </Link>
+                            )}
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody className="bg-white divide-y divide-gray-200">
-                        {sortedBackups.slice(0, 50).map((backup) => (
-                          <tr key={backup.id} className="hover:bg-gray-50">
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {sourceNameMap[backup.sourceId] || backup.sourceId}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
-                              {backup.id}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                                backup.type === 'full' ? 'bg-purple-100 text-purple-800' :
-                                backup.type === 'disk-image' ? 'bg-orange-100 text-orange-800' :
-                                'bg-blue-100 text-blue-800'
-                              }`}>
-                                {backup.type}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {formatDate(backup.timestamp)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {formatBytes(backup.size)}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(backup.status)}`}>
-                                {backup.status}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm">
-                              {backup.status === 'completed' && (
-                                <Link
-                                  href={`/restore?backup=${backup.id}`}
-                                  className="text-clawbox-600 hover:text-clawbox-900 font-medium"
-                                >
-                                  Restore
-                                </Link>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </>
