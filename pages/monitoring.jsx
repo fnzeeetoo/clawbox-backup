@@ -9,7 +9,6 @@ export default function Monitoring() {
   const bottomRef = useRef(null);
 
   useEffect(() => {
-    // Fetch initial logs
     fetchLogs();
 
     // Poll for new logs every 5 seconds
@@ -24,19 +23,20 @@ export default function Monitoring() {
 
   const fetchLogs = async () => {
     try {
-      // In a real implementation, this would hit the local API
-      // For now, we'll just simulate or read from syslog
-      const res = await fetch('/api/stats');
+      const res = await fetch('/api/logs');
       if (res.ok) {
-        // We'd normally fetch actual log tail from the engine
+        const data = await res.json();
+        if (data.success) {
+          setLogs(data.data || []);
+          setConnected(true);
+        }
+      } else {
+        setConnected(false);
       }
     } catch (error) {
       console.error('Failed to fetch logs:', error);
+      setConnected(false);
     }
-  };
-
-  const addLog = (entry) => {
-    setLogs(prev => [...prev.slice(-499), entry]); // Keep last 500 lines
   };
 
   const getLevelColor = (level) => {

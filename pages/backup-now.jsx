@@ -44,20 +44,44 @@ export default function BackupNow() {
     setResult(null);
     setError(null);
     try {
-      const res = await fetch('/api/backups', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sourceId: selectedSource,
-          destinationId: selectedDestination,
-          backupType,
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setResult(data);
+      let responses;
+      if (selectedSource === 'all') {
+        // Run backup for all sources
+        responses = await Promise.all(
+          sources.map(src =>
+            fetch('/api/backups', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                sourceId: src.id,
+                destinationId: selectedDestination,
+                backupType,
+              }),
+            }).then(res => res.json())
+          )
+        );
+        const failures = responses.filter(r => !r.success);
+        if (failures.length > 0) {
+          setError(`${failures.length} of ${responses.length} backups failed`);
+        } else {
+          setResult({ data: responses.map(r => r.data) });
+        }
       } else {
-        setError(data.error || 'Unknown error');
+        const res = await fetch('/api/backups', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sourceId: selectedSource,
+            destinationId: selectedDestination,
+            backupType,
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setResult(data);
+        } else {
+          setError(data.error || 'Unknown error');
+        }
       }
     } catch (e) {
       setError(e.message);
@@ -97,7 +121,19 @@ export default function BackupNow() {
             )}
             {result && (
               <div className="mb-4 p-4 bg-green-50 text-green-800 rounded">
-                Backup started successfully. ID: {result.data?.id || 'N/A'}
+                <p><strong>Backup completed successfully!</strong></p>
+                {Array.isArray(result.data) ? (
+                  <ul className="text-sm mt-1 list-disc list-inside">
+                    {result.data.map((b, i) => (
+                      <li key={i}>{b.id}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-sm mt-1">ID: {result.data?.id || 'N/A'}</p>
+                )}
+                <p className="text-sm text-green-700 mt-2">
+                  <Link href="/" className="underline">Return to Dashboard</Link> to see updated stats.
+                </p>
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -109,6 +145,7 @@ export default function BackupNow() {
                   className="w-full border-gray-300 rounded-md shadow-sm focus:ring-clawbox-500 focus:border-clawbox-500"
                 >
                   <option value="">Select a source</option>
+                  <option value="all">All Sources (run all)</option>
                   {sources.map((src) => (
                     <option key={src.id} value={src.id}>{src.name} ({src.path})</option>
                   ))}
